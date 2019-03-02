@@ -37,8 +37,8 @@ mqtt_server         = '192.168.2.36'
 mqtt_port           = 1883
 mqtt_SubscribeTopic = 'smarthome/cul/to/#'
 mqtt_PublishTopic   = 'smarthome/cul/from/'
-mqtt_user           = 'dirk'
-mqtt_pass           = 'soxias'
+mqtt_user           = 'xxxx'
+mqtt_pass           = 'xxxx'
 mqtt_ca             = ''
 
 if not os.path.exists(port):
