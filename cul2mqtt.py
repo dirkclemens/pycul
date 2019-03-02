@@ -17,7 +17,7 @@
 #   pip3 install pyserial-asyncio --user
 #
 # Test:
-#   mosquitto_pub -h "192.168.2.36" -p 1883 -u "dirk" -P "soxias" -t "/smarthome/cul/device/1" -m "DC69B111E9"
+#   mosquitto_pub -h "192.168.2.36" -p 1883 -u "xxxxx" -P "xxxxx" -t "/smarthome/cul/device/1" -m "DC69B111E9"
 #
 
 import os
