@@ -76,5 +76,8 @@ sets the CUL stick to debugging mode
 `mosquitto_pub -h <hostname> -p <port> -u <username> -P <password> -t "/smarthome/cul/to/FDC69B1" -m "on-for-timer 120"`
 
 
-For more details on the CUL Stick, please check http://culfw.de/commandref.html
- 
+For more details on the CUL Stick, please check 
+* http://culfw.de/commandref.html
+* http://fhz4linux.info/tiki-index.php?page=FHT%20protocol
+* http://fhz4linux.info/tiki-index.php?page=FS20%20Protocol
+
