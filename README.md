@@ -17,6 +17,33 @@ change the folling setting depending on the local setup
 * mqtt_pass           = '****'
 * mqtt_ca             = ''  ### not yet supported
 
+after starting the script, CUL messages are send to stdout, e.g.
+```
+MQTT TX: Topic: FDC6900                             >> Message: FDC690000F2          [True]
+FS20:    LichtKueche       FS20_Off                [raw:DC69-00-00-F2] (rssi:-81.0) DC690000F2
+MQTT TX: Topic: FDC6902                             >> Message: FDC690211E4          [True]
+FS20:    LichtKellerflur   FS20_On                 [raw:DC69-02-11-E4] (rssi:-88.0) DC690211E4
+MQTT TX: Topic: K012321                             >> Message: K0123217937          [True]
+S300TH:  1                 T:12.3 H:79.2                 [raw:0123217937] (rssi:-46.5)
+MQTT TX: Topic: T162100                             >> Message: T162100A604F6        [True]
+FHT80:   Erdgeschoss       FHT_ACTUATOR_4         2.0    [raw:1621-00-A6-04] (rssi:-79.0) 162100A604F6
+MQTT TX: Topic: T162154                             >> Message: T1621546712F6        [True]
+FHT80:   Erdgeschoss       FHT_ACTUATOR_18        7.0    [raw:1621-54-67-12] (rssi:-79.0) 1621546712F6
+MQTT TX: Topic: T52FB7B                             >> Message: T52FB7B0234          [True]
+FHT80TF: Multiraum         FHT80TF_WINDOW_CLOSED         [raw:52FB-7B-02-34] (rssi:-48.0) 52FB7B0234
+...
+MQTT RX: Topic: V                                   >> Message: .                    [False]
+CUL:     sending V
+MQTT TX: Topic: V 1.55                              >> Message: V 1.55 CUL868        [True]
+CUL received: V 1.55 CUL868
+...
+MQTT RX: Topic: X                                   >> Message: T02                  [False]
+CUL:     sending raw T02
+MQTT TX: Topic: N/A                                 >> Message: N/A                  [True]
+CUL received: N/A
+
+```
+
 ### controll CUL devices with mqtt messages:
 
 `mosquitto_pub -h <hostname> -p <port> -u <username> -P <password> -t "smarthome/cul/to/$1" -m "$2`
