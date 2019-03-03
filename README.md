@@ -6,7 +6,7 @@ CUL stick: http://shop.busware.de/product_info.php/cPath/1_35/products_id/29
 
 ### usage of cul2mqtt.py:
 
-mosquitto_pub -h <hostname> -p <port> -u <username> -P <passworf> -t "smarthome/cul/to/$1" -m "$2`
+`mosquitto_pub -h <hostname> -p <port> -u <username> -P <passworf> -t "smarthome/cul/to/$1" -m "$2`
   with $1: device starting with one of the following chars:
 
   $1 | description | $2
@@ -18,3 +18,4 @@ mosquitto_pub -h <hostname> -p <port> -u <username> -P <passworf> -t "smarthome/
   T | send message to FHT device | t.b.d.
   
 For more details on the CUL Stick, please check http://culfw.de/commandref.html
+ 
