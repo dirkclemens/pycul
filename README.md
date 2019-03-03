@@ -2,3 +2,19 @@
 access CUL stick using Python3 
 
 CUL stick: http://shop.busware.de/product_info.php/cPath/1_35/products_id/29
+
+
+## usage of cul2mqtt.py:
+
+mosquitto_pub -h <hostname> -p <port> -u <username> -P <passworf> -t "smarthome/cul/to/$1" -m "$2"
+  with $1: device starting with one of the following chars:
+
+  $1 | decsription | $2
+  --- | ---- | ---
+  V | get Version of CUL stick | --
+  X | send raw command  | e.g. X21: , X00: , X61: , ... see also:
+  l | control LED on the Stick | with l00: LED on, l01: LED off, l02: LED blinking
+  F | send message to FS20 device | e.g. FABCDEF xx yy with ABDC = housecode, EF = device, xx = command, yy = timing 
+  T | send message to FHT device | t.b.d.
+  
+For more details on the CUL Stick, please check 
