@@ -15,11 +15,11 @@ change the folling setting depending on the local setup
 * mqtt_PublishTopic   = 'smarthome/cul/from/'
 * mqtt_user           = '****'
 * mqtt_pass           = '****'
-* mqtt_ca             = ''
+* mqtt_ca             = ''  ### not yet supported
 
 ### controll CUL devices with mqtt messages:
 
-`mosquitto_pub -h <hostname> -p <port> -u <username> -P <passworf> -t "smarthome/cul/to/$1" -m "$2`
+`mosquitto_pub -h <hostname> -p <port> -u <username> -P <password> -t "smarthome/cul/to/$1" -m "$2`
 
 with $1 and $2: device starting with one of the following chars:
 
@@ -33,20 +33,20 @@ with $1 and $2: device starting with one of the following chars:
 
 ### examples
 
-`mosquitto_pub -h <hostname> -p <port> -u <username> -P <passworf> -t "/smarthome/cul/to/V" -m ""`  
+`mosquitto_pub -h <hostname> -p <port> -u <username> -P <password> -t "/smarthome/cul/to/V" -m ""`  
 returns the Version of the CUL stick, e.g. `V 1.55 CUL868`
 
-`mosquitto_pub -h <hostname> -p <port> -u <username> -P <passworf> -t "/smarthome/cul/to/X" -m "X21"`   
+`mosquitto_pub -h <hostname> -p <port> -u <username> -P <password> -t "/smarthome/cul/to/X" -m "X21"`   
 sets the CUL stick to normal output mode
 
-`mosquitto_pub -h <hostname> -p <port> -u <username> -P <passworf> -t "/smarthome/cul/to/X" -m "X25"`   
+`mosquitto_pub -h <hostname> -p <port> -u <username> -P <password> -t "/smarthome/cul/to/X" -m "X25"`   
 sets the CUL stick to debugging mode
 
-`mosquitto_pub -h <hostname> -p <port> -u <username> -P <passworf> -t "/smarthome/cul/to/FDC69B1" -m "on"`
+`mosquitto_pub -h <hostname> -p <port> -u <username> -P <password> -t "/smarthome/cul/to/FDC69B1" -m "on"`
 
-`mosquitto_pub -h <hostname> -p <port> -u <username> -P <passworf> -t "/smarthome/cul/to/FDC69B1" -m "toggle"`
+`mosquitto_pub -h <hostname> -p <port> -u <username> -P <password> -t "/smarthome/cul/to/FDC69B1" -m "toggle"`
 
-`mosquitto_pub -h <hostname> -p <port> -u <username> -P <passworf> -t "/smarthome/cul/to/FDC69B1" -m "on-for-timer 120"`
+`mosquitto_pub -h <hostname> -p <port> -u <username> -P <password> -t "/smarthome/cul/to/FDC69B1" -m "on-for-timer 120"`
 
 
 For more details on the CUL Stick, please check http://culfw.de/commandref.html
