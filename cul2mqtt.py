@@ -33,6 +33,9 @@ import aiomqtt
 from functools import partial
 import re
 
+################################################################################
+# settings
+################################################################################
 cul_port            = '/dev/ttyACM1'
 cul_baud            = 9600
 mqtt_server         = '192.168.2.36'
@@ -43,37 +46,65 @@ mqtt_user           = '***'
 mqtt_pass           = '***'
 mqtt_ca             = ''
 
+################################################################################
+# pre-checks 
+################################################################################
 if not os.path.exists(cul_port):
-	print('Serial port does not exist')
+	print('Serial port %s does not exist' % cul_port)
 	sys.exit(1)
 
 ################################################################################
 # defines 
 ################################################################################
-FS20 			= {"DC6900":"LichtKueche", "DC6901":"LichtAussenwand", "DC6902":"LichtKellerflur", "DC6903":"LichtGartentor", "DC69B0":"LichtDachHinten", "DC69B1":"LichtDachMitte", "DC69B2":"LichtDachTreppe", "536200":"Klingel1", "536201":"Klingel2", "A7A300":"Bewegung1", "557A00":"Bewegung2", "EEEF00":"FS20S8M_1", "EEEF01":"FS20S8M_2", "EEEF02":"FS20S8M_3"}
+FS20 			= {"DC6900":"LichtKueche", "DC6901":"LichtAussenwand", "DC6902":"LichtKellerflur", "DC6931":"LichtGartentor", "DC6903":"LichtGartentorX", "DC69B0":"LichtDachHinten", "DC69B1":"LichtDachMitte", "DC69B2":"LichtDachTreppe", "536200":"Klingel1", "536201":"Klingel2", "A7A300":"Bewegung1", "557A00":"Bewegung2", "EEEF00":"FS20S8M_1", "EEEF01":"FS20S8M_2", "EEEF02":"FS20S8M_3"}
 FHT80 			= {"552D":"Multiraum", "1621":"Erdgeschoss", "0B48":"Lina", "095C":"Nico", "5A5B":"Dach"}
 FHT80TF 		= {"52FB7B":"Multiraum", "9F63ED":"Kueche", "AD141B":"Lina", "7D66C0":"Nico", "5A3392":"Kellerbuero", "005E4F":"Kellertuere", "B79DA0":"Haustuere"}
 
 ################################################################################
 # FS20 
 ################################################################################
-fs20codes = [
-  "off",   
-  "dim06%", "dim12%", "dim18%", "dim25%", "dim31%", "dim37%", "dim43%", "dim50%", "dim56%",
-  "dim62%",  "dim68%","dim75%", "dim81%", "dim87%", "dim93%", "dim100%",   
-  "on",     # Set to previous dim value (before switching it off)
-  "toggle", # between off and previous dim val
-  "dimup",   "dimdown",   "dimupdown",
-  "timer",
-  "sendstate",
-  "off-for-timer",   "on-for-timer",   "on-old-for-timer",
-  "reset",
-  "ramp-on-time",      #time to reach the desired dim value on dimmers
-  "ramp-off-time",     #time to reach the off state on dimmers
-  "on-old-for-timer-prev", # old val for timer, then go to prev. state
-  "on-100-for-timer-prev" # 100% for timer, then go to previous state
-]
 
+# https://www.elv.at/downloads/faq/2013-05-27_Interne_Bezeichnungen_FS20-Befehlcodes.pdf
+fs20codes = {
+  "00":"off", 
+  "01":"dim06%", "02":"dim12%", "03":"dim18%", "04":"dim25%", "05":"dim31%", "06":"dim37%", "07":"dim43%", "08":"dim50%", "09":"dim56%", "0a":"dim62%", "0b":"dim68%", "0c":"dim75%", "0d":"dim81%",  "0e":"dim87%", "0f":"dim93%", "10":"dim100%",
+  "11":"on",		# Set to previous dim value (before switching it off)
+  "12":"toggle",	# between off and previous dim val
+  "13":"dimup", "14":"dimdown", "15":"dimupdown",
+  "16":"timer", "17":"sendstate", "18":"off-for-timer", "19":"on-for-timer", "1a":"on-old-for-timer",
+  "1b":"reset", "1c":"ramp-on-time", "1d":"ramp-off-time", "1e":"on-old-for-timer-prev", "1f":"on-100-for-timer-prev", 
+  "20":"off", 
+  "21":"dim06%", "22":"dim12%", "23":"dim18%", "24":"dim25%", "25":"dim31%", "26":"dim37%", "27":"dim43%", "28":"dim50%", "29":"dim56%", "2a":"dim62%", "2b":"dim68%", "2c":"dim75%", "2d":"dim81%",  "2e":"dim87%", "2f":"dim93%", "30":"dim100%",
+  "31":"on", "32":"toggle", "33":"dimup", "34":"dimdown", "35":"dimupdown",
+  "36":"timer", "37":"sendstate", "38":"off-for-timer", "39":"on-for-timer", "3a":"on-old-for-timer",
+  "3b":"n/a", "3c":"ramp-on-time", "3d":"ramp-off-time", "3e":"on-old-for-timer-prev", "3f":"on-100-for-timer-prev"}
+fhtcodes = { 
+  "00":"actuator", "01":"actuator1", "02":"actuator2", "03":"actuator3", "04":"actuator4", "05":"actuator5", "06":"actuator6", "07":"actuator7", "08":"actuator8",
+  "14":"mon-from1", "15":"mon-to1", "16":"mon-from2", "17":"mon-to2", "18":"tue-from1", "19":"tue-to1", "1A":"tue-from2", "1B":"tue-to2", "1C":"wed-from1", "1D":"wed-to1", "1E":"wed-from2", "1F":"wed-to2", "20":"thu-from1", "21":"thu-to1", "22":"thu-from2", "23":"thu-to2", "24":"fri-from1", "25":"fri-to1", "26":"fri-from2", "27":"fri-to2", "28":"sat-from1", "29":"sat-to1", "2A":"sat-from2", "2B":"sat-to2", "2C":"sun-from1", "2D":"sun-to1", "2E":"sun-from2", "2F":"sun-to2",
+  "3E":"mode",
+  "3F":"holiday1",		# Not verified
+  "40":"holiday2",		# Not verified
+  "41":"desired-temp", "XX":"measured-temp",		# sum of next. two, never really sent
+  "42":"measured-low", "43":"measured-high", "44":"warnings", "45":"manu-temp",	# No clue what it does.
+  "4B":"ack", "53":"can-xmit", "54":"can-rcv",
+  "60":"year", "61":"month", "62":"day", "63":"hour", "64":"minute", "65":"report1", "66":"report2", "69":"ack2", "7D":"start-xmit", "7E":"end-xmit",
+  "82":"day-temp", "84":"night-temp",
+  "85":"lowtemp-offset",         # Alarm-Temp.-Differenz
+  "8A":"windowopen-temp" 
+}
+fhttfkcodes = {
+    "02":"Window:Closed",
+    "82":"Window:Closed",
+    "01":"Window:Open",
+    "81":"Window:Open",
+    "0c":"Sync:Syncing",
+    "91":"Window:Open, Low Batt",
+    "11":"Window:Open, Low Batt",
+    "92":"Window:Closed, Low Batt",
+    "12":"Window:Closed, Low Batt",
+    "0f":"Test:Success" 
+}
+    
 ################################################################################
 # CUL Stick - serial asyncIO interface
 ################################################################################
@@ -93,8 +124,8 @@ class culRxTx(asyncio.Protocol):
 
 		# initialize CUL
 		#self.transport.serial.write(b'V\r\n')
-		#asyncio.sleep(1.0)
-		#self.transport.serial.write(b'X21\r\n')
+		self.transport.serial.write(b'X21\r\n')
+		asyncio.sleep(0.3)
 		print('CUL init done.')
 
 		# start receiving loop
@@ -164,9 +195,10 @@ class culRxTx(asyncio.Protocol):
 			#print('msg:%s >>>> cmd:%s >>>subcmd:%s' % (msg,cmd,subcmd))
 
 			if msg[0] in ['F','l','T','t','V','X','#']:
-				if (msg[0] == 'V'):
-					print('CUL:     sending V')
+				if (msg[0] == 'V'): #Version
 					self.transport.serial.write(b'V\r\n')
+				if (msg[0] == 't'): # uptime
+					self.transport.serial.write(b't\r\n')
 				if (msg[0] == 'X'):
 					print('CUL:     sending raw %s' % rawcmd)
 					self.transport.serial.write(bytes('%s\r\n' % (rawcmd, ), 'ascii'))
@@ -223,8 +255,15 @@ def clrstr(string):
 	s = ''.join(char if char.lower() in legal else ' ' for char in string)
 	return s
 
+async def printlog(devtype,devname,cmd,val,formraw,rssi,raw):
+	try:
+		print('%-12s %-18s %-30s %-24s [%16s] (rssi:%7s) <%s>' % (devtype,devname,cmd[0:29],val[0:23],formraw,rssi,raw))
+		pass
+	except Exception as e:
+		print(e)
+
 # from fhem: 14_CUL_WS.pm
-def parseS300TH(msg, rssi):
+async def parseS300TH(client, msg, rssi):
 	typbyte = int(msg[2],16) & 7
 	if len(msg)>=15:
 		print("\tKS300 not implemented")
@@ -237,26 +276,32 @@ def parseS300TH(msg, rssi):
 		if sgn != 0:
 			temperature *= -1
 		humidity = float(msg[6] + msg[7] + "." + msg[4])	# + $hash->{corr2}
-		print("S300TH:  %-17s T:%-4s H:%-20s [raw:%s]    (rssi:%s)" % (cde, temperature, humidity, clrstr(msg), rssi))
+
+		json = '{"type":"S300TH","name":"%s","device":"%s","temperature":"%s","humidity":"%s","raw":"%s"}' % ('K1', 'K'+msg[0], temperature, humidity, clrstr(msg))
+		msgPublish = client.publish(mqtt_PublishTopic + 'K'+msg[0] + '/state', json, retain=1)
+		await msgPublish.wait_for_publish()
+
+		buf = ('Temp:%-4s Humi:%-20s' % (temperature,humidity))
+		await printlog("S300TH", cde, 'SENSOR', buf, clrstr(msg), rssi, 'K'+clrstr(msg))
 
 
 # from fhem: 10_FS20.pm
 # http://fhz4linux.info/tiki-index.php?page=FS20%20Protocol
-def parseFS20(msg, rssi):
+async def parseFS20(client, msg, rssi):
 								# FDC690200
 								# FHHHHAABBTTRR
-	housecode	= msg[0:4]		# HHHH FS20-Hauscode
-	address		= msg[4:4+2]	# AA   FS20-Adresse
-	command		= msg[6:6+2]	# BB   FS20-Befehl
-	argument		= msg[8:8+2]	# TT   FS20-Timer Erweiterungbyte
-	splitmsg		= "   %s-%s-%s" % (housecode, address, command)
+	device		= msg[0:4]		# HHHH FS20-Hauscode 	my $dev = substr($msg, 16, 4);
+	btn		= msg[4:4+2]	# AA   FS20-Adresse		my $btn = substr($msg, 20, 2);
+	command		= msg[6:6+2]	# BB   FS20-Befehl		my $cde = substr($msg, 24, 2);
+	argument	= msg[8:8+2]	# TT   FS20-Timer Erweiterungbyte
+	splitmsg	= "   %s-%s-%s" % (device, btn, command)
 	if len(argument)>0:
-		splitmsg		= "%s-%s-%s-%s" % (housecode, address, command, argument)
-	FS20deviceID = housecode+address
+		splitmsg= "%s-%s-%s-%s" % (device, btn, command, argument)
+	FS20deviceID = device+btn
+	attr 		= ''
 	
 	cx  = int(command,16) # hex to int
 	cde 		= ' '
-	to 		= '        ' # placeholder only
 	if (cx & 0x20) and len(argument)>0:  # Timed command
 		dur	= int(argument, 16) 	# eigentlich "check"
 		i 	= (dur & 0xf0)/16;
@@ -264,46 +309,39 @@ def parseFS20(msg, rssi):
 		dur = (2**i)*j*0.25;
 		cde = "%0.2X" % (cx & ~0x20)
 		to  = ('%02d:%02d:%02d' % (dur/3600, (dur%3600)/60, dur%60))
-		#command:56 - i:0.0 - j:11 - dur:2.75 - cde:18 - to:00:00:02
-		#command:38 (38) - i:0.0 - j:7 - dur:1.75 - cde:18 - to:00:00:01
-		#FS20:    FS20S8M_1         unknown command 56   00:00:01 [raw:EEEF-00-38-AF] (rssi:-70.5) FEEEF0038AF07
-		print('\t\t\t   command:%s (%0.2X) - i:%s - j:%s - dur:%s - cde:%s - to:%s' % (command, cx, i, j, dur, cde, to))
+		#print('\t\t\t   command:%s (%0.2X) - i:%s - j:%s - dur:%s - cde:%s - to:%s' % (command, cx, i, j, dur, cde, to))
+	else: 
+		to = ''
 
 	if FS20deviceID in FS20:
 		FS20device = FS20[FS20deviceID]
-		state = "unknown command %s" % cx
+		state = "unknown command %s" % command
 		try:	
-			state = fs20codes[cx].upper()
+			state = fs20codes[command].upper()
+			if cx == 0 or cx == 17: # off / on 
+				to = state.lower()
 			pass
 		except Exception as e:
 			pass
-		print("FS20:    %-17s %-22s %-15s [raw:%s] (rssi:%s) F%s" % (FS20device, state, to, splitmsg, rssi, clrstr(msg)))
-	else:
-		print("unknown FS20 device [raw:F%s]" % (splitmsg))
 
-fhtcodes = { 
-  "00":"actuator", "01":"actuator1", "02":"actuator2", "03":"actuator3", "04":"actuator4", "05":"actuator5", "06":"actuator6", "07":"actuator7", "08":"actuator8",
-  "14":"mon-from1", "15":"mon-to1", "16":"mon-from2", "17":"mon-to2", "18":"tue-from1", "19":"tue-to1", "1A":"tue-from2", "1B":"tue-to2", "1C":"wed-from1", "1D":"wed-to1", "1E":"wed-from2", "1F":"wed-to2", "20":"thu-from1", "21":"thu-to1", "22":"thu-from2", "23":"thu-to2", "24":"fri-from1", "25":"fri-to1", "26":"fri-from2", "27":"fri-to2", "28":"sat-from1", "29":"sat-to1", "2A":"sat-from2", "2B":"sat-to2", "2C":"sun-from1", "2D":"sun-to1", "2E":"sun-from2", "2F":"sun-to2",
-  "3E":"mode",
-  "3F":"holiday1",		# Not verified
-  "40":"holiday2",		# Not verified
-  "41":"desired-temp", "XX":"measured-temp",		# sum of next. two, never really sent
-  "42":"measured-low", "43":"measured-high", "44":"warnings", "45":"manu-temp",	# No clue what it does.
-  "4B":"ack", "53":"can-xmit", "54":"can-rcv",
-  "60":"year", "61":"month", "62":"day", "63":"hour", "64":"minute", "65":"report1", "66":"report2", "69":"ack2", "7D":"start-xmit", "7E":"end-xmit",
-  "82":"day-temp", "84":"night-temp",
-  "85":"lowtemp-offset",         # Alarm-Temp.-Differenz
-  "8A":"windowopen-temp" 
-}
+		json = '{"type":"FS20","name":"%s","device":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FS20device, device, state, attr, to, clrstr(msg))
+		msgPublish = client.publish(mqtt_PublishTopic + 'F'+device+btn + '/state', state, retain=1)
+		await msgPublish.wait_for_publish()
+
+		await printlog("FS20", FS20device, state, to, splitmsg, rssi, 'F'+clrstr(msg))
+	else:
+		await printlog("?", '', '', '', splitmsg, rssi, clrstr(msg))
+
+
 # from fhem: 11_FHT.pm
 # from http://fhz4linux.info/tiki-index.php?page=FHT%20protocol
 fht_measured_low  = -1
-def parseFHT(msg, rssi):
+async def parseFHT(client, msg, rssi):
 	global fht_measured_low
 	device	 	= msg[0:4]		# Hauscode		 	/ my $dev = substr($msg, 16, 4);
-	cde 			= msg[4:4+2]	# Kommando (00) 	/ my $cde = substr($msg, 20, 2);
+	cde 		= msg[4:4+2]	# Kommando (00) 	/ my $cde = substr($msg, 20, 2);
 	origin 		= msg[6:6+2]	# Befehl  			/ 22
-	val 			= msg[8:8+2]	# Erweiterungbyte 	/ 24
+	val 		= msg[8:8+2]	# Erweiterungbyte 	/ 24
 	check 		= msg[10:10+2]	# checksum 8bit-Summe von HC1 bis EE + Ch # 26
 	splitmsg 	= "%s-%s-%s-%s" % (device, cde, origin, val)
 	if len(msg)>10:
@@ -311,59 +349,67 @@ def parseFHT(msg, rssi):
 	dec_val		= int(val,16)
 	confirm		= 0
 	fht_measured_high = -1
-	'''
-	FHT80:   Lina         FHT_ACTUATOR_81        32.0   [raw:0B48-00-A6-51]
-	FHT80:   Lina         FHT_MEASURED_TEMP_LOW  D4     [raw:0B48-42-69-D4]
-				 unknown FHT state 3E   00              [raw:0B48-3E-69-00] 
-	FHT80:   Multiraum    FHT_ACTUATOR_42        16.0   [raw:552D-00-A6-2A]
-	'''
+
 	if device in FHT80:
 		if cde in fhtcodes:
-			state = 'FTH_'+fhtcodes[cde].upper()
+			cattr = fhtcodes[cde].lower()
+			state = fhtcodes[cde].upper()
 		else:
+			cattr = 'na'
 			state = "unknown FHT state %s" % cde
-		value = val
+		cvalue = val
 
 		if int(cde,16) >= 0 and int(cde,16) < 9: # FHT_ACTUATOR_0 .. FHT_ACTUATOR_8
 			fv = "%d%%" % int(100*dec_val/255 + 0.5)
-			value = fv
+			cattr  = "Actuator"
+			cvalue = fv
 			sval  = val[1:1].upper()
 			if sval == '0':
-				value = 'SYNCNOW'
+				cvalue = 'Syncnow'
 			if sval == '1':
-				value = '99%'
+				cvalue = '99%'
 			if sval == '2':
-				value = '0%'
+				cvalue = '0%'
 			if sval == '8':
 				if dec_val>128:
-					value = 'OFFSET: %s' % (128-dec_val)
+					cvalue = 'Offset: %s' % (128-dec_val)
 				else:
-					value = 'OFFSET: %s' % dec_val  
+					value = 'Offset: %s' % dec_val  
 			if val == '2A' or val == '3A':
-				value = 'LIME-PROTECTION'
+				cvalue = 'Lime-Protection'
 			if sval == 'C':
-				value = 'SYNCTIME: %f' % int(dec_val/2-1)
+				cvalue = 'Synctime: %f' % int(dec_val/2-1)
 			if sval == 'E':
-				value = 'TEST'
+				cvalue = 'Test'
 			if sval == 'F':
-				value = 'PAIR'
+				cvalue = 'Pair'
 
 		if int(cde,16) > 19 and int(cde,16) < 48: # 0x14 - 0x2f --> -from and -to
-			value = ("%02d:%02d" % (dec_val/6, (dec_val%6)*10))
+			cattr  = "Schedule"
+			cvalue = ("%02d:%02d" % (dec_val/6, (dec_val%6)*10))
 
 		if cde == '3E': # FTH_Mode
-			fhtmodes = ["AUTO", "MANUAL", "HOLIDAY", "HOLIDAY_SHORT"]
+			fhtmodes = ["Auto", "Manual", "Holiday", "Holiday_Short"]
+			cattr  = "Mode"
 			if dec_val >= 0 and dec_val < 4:
-				value = 'MODE: %s' % fhtmodes[dec_val].upper()
+				cvalue = '%s' % fhtmodes[dec_val]
 			else:
-				value = 'UNKNOWN MODE'
+				cvalue = 'Unknown Mode'
 
 		if cde == '41': # FHT_DESIRED_TEMP
-			value = str(round(float(dec_val / 2.0), 0))
-			if value > 30: 
-				value = "ON"
-			if value < 6: 
-				value = "OFF"
+			cattr  = "Desired Temp."
+			cvalue = round(float(dec_val / 2.0), 0)
+			try:
+				if int(cvalue) > 30: 
+					cvalue = "on"
+				elif int(cvalue) < 6: 
+					cvalue = "off"
+				else:
+					cvalue = '%s' % cvalue
+				pass	
+			except Exception:
+				cvalue = 'unknown %s' % cvalue
+				pass
 
 		if cde == '42': # FHT_MEASURED_TEMP_LOW
 			fht_measured_low  = dec_val
@@ -372,45 +418,55 @@ def parseFHT(msg, rssi):
 			# special treatment for measured-temp which is actually sent in two bytes
 			# measured-temp= (measured-high * 256 + measured-low) / 10.
 			if fht_measured_low>=0:
-				state = 'FHT_MEASURED_TEMP'
-				value = str(round(float((dec_val * 256.0 + fht_measured_low) / 10.0), 0))
+				state = 'MEASURED-TEMP'
+				cattr  = "Measured Temp."
+				cvalue = str(round(float((dec_val * 256.0 + fht_measured_low) / 10.0), 0))
 				fht_measured_low  = -1 
 
 		if cde == '44': # parse warnings
+			cattr  = "Warnings"
+			dec_check = int(check, 16)
 			nVal = ''
-			if (dec_val & 1):
-				nVal  = "BATTERY LOW "
-			if(dec_val & 2):
-				nVal += "TEMPERATURE TOO LOW "
-			if(dec_val & 32):
-				nVal += "WINDOW OPEN "
-			if(dec_val & 16):
-				nVal += "FAULT ON WINDOW SENSOR";
-			value = nVal
+			if (dec_check & 1):
+				nVal  = "Battery Low "
+			if(dec_check & 2):
+				nVal += "Temperature Too Low "
+			if(dec_check & 16):
+				nVal += "Fault On Window Sensor ";
+			if(dec_check & 32):
+				nVal += "Window Open "
+			cvalue = nVal
 
 		if cde == '65' or cde == '66':
-			state = ('FHT_REPORT%s %s' % (int(cde)-64, origin))
+			state = ('REPORT%s %s' % (int(cde)-64, origin))
+			cattr  = "Report"
+			cvalue = int(cde)-64
 			confirm = 1
 
 		if cde == '45': #"manu-temp"
-			value = "%.1f" % dec_val / 2
+			cvalue = "%.1f" % dec_val / 2
 		if cde == '82': #"day-temp"
-			value = "%.1f" % dec_val / 2
+			cvalue = "%.1f" % dec_val / 2
 		if cde == '84': #"night-temp"
-			value = "%.1f" % dec_val / 2
+			cvalue = "%.1f" % dec_val / 2
 		if cde == '85': #"lowtemp-offset"
-			value = "%d.0" % dec_val
+			cvalue = "%d.0" % dec_val
 		if cde == '8A': #"windowopen-temp"
-			value = "%.1f" % dec_val / 2
+			cvalue = "%.1f" % dec_val / 2
 
-		print("FHT80:   %-17s %-22s %-15s [raw:%s] (rssi:%s) T%s" % (FHT80[device], state, value, splitmsg, rssi, clrstr(msg)))
+		json = '{"type":"FHT","name":"%s","device":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FHT80[device], device, state, cattr, cvalue, clrstr(msg))
+		msgPublish = client.publish(mqtt_PublishTopic + 'T'+device + '/'+cattr, cvalue, retain=1)
+		await msgPublish.wait_for_publish()
+
+		buf = ('%s: %s' % (cattr, cvalue))
+		await printlog("FHT80", FHT80[device], state, buf, splitmsg, rssi, 'T'+clrstr(msg))
 	else:
-		print("\t unknown FHT80 device [raw:%s] (rssi:%s) T%s" % (splitmsg, rssi, clrstr(msg)))
+		await printlog("?", '', '', '', splitmsg, rssi, clrstr(msg))
 
 
 # from fhem: 09_CUL_FHTTK.pm
 # from http://fhz4linux.info/tiki-index.php?page=FHT%20protocol
-def parseFHTTK(msg, rssi):
+async def parseFHTTK(client, msg, rssi):
 	sensor 		= msg[0:6]		# my $sensor= lc(substr($msg, 1, 6));
 	state 		= msg[6:8]		# my $state = lc(substr($msg, 7, 2));
 	splitmsg 	= "%9s-%s" % (sensor, state)
@@ -423,27 +479,41 @@ def parseFHTTK(msg, rssi):
 	# if 2nd char of XX is c then Sync:Syncing
 	# if 2nd char of XX is f then Test:Success
 	if sensor in FHT80TF: 
-		state = state.upper()
-		value = "FHT80TF - state unknown: <%s>" % (state)
+		cmd = fhttfkcodes[state].upper()
+		cattr  = ''
+		cvalue = ''
 		if state.endswith('1'):
-			value = "FHT80TF_WINDOW_OPEN"
+			cattr  = "Window"
+			cvalue = "Open"
 		if state.endswith('2'):
-			value = "FHT80TF_WINDOW_CLOSED"
+			cattr  = "Window"
+			cvalue = "Closed"
 		if state.endswith('C'):
-			value = "FHT80TF_SYNCING"
+			cattr  = "Sync"
+			cvalue = "Syncing"
 		if state.endswith('F'):
-			value = "FHT80TF_TEST_SUCCESS"
+			cattr  = "Test"
+			cvalue = "Success"
 		if state.startswith('1'):
-			value += "_LOWBAT"
+			cattr  = "Battery"
+			cvalue = "Low"
 		if state.startswith('9'):
-			value += "_LOWBAT"
-		print("FHT80TF: %-17s %-38s [raw: %s] (rssi:%s) T%s" % (FHT80TF[sensor], value, splitmsg, rssi, clrstr(msg)))
+			cattr  = "Battery"
+			cvalue = "Low"
+		
+		
+		json = '{"type":"FHTTK","name":"%s","device":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FHT80TF[sensor], sensor, cmd, cattr, cvalue, msg)
+		msgPublish = client.publish(mqtt_PublishTopic + 'T'+sensor + '/'+cattr, cvalue, retain=0)
+		await msgPublish.wait_for_publish()
+
+		buf = ('%s: %s' % (cattr, cvalue))
+		await printlog("FHT80TF", FHT80TF[sensor], cmd, buf, splitmsg, rssi, 'T'+clrstr(msg))
 	else:
-		print("\t unknown FHT80TF device [raw:%s] (rssi:%s) T%s" % (splitmsg, rssi, clrstr(msg)))
+		await printlog("?", '', '', '', splitmsg, rssi, clrstr(msg))
 
 
 # from fhem: 00_CUL.pm
-def culDecode(msg):
+async def culDecode(client, msg):
 	rawmsg = msg[1:len(msg)+1]
 
 	#if($dmsg =~ m/^[AFTKEHRStZrib]([A-F0-9][A-F0-9])+$/) { # RSSI
@@ -456,65 +526,69 @@ def culDecode(msg):
 	else:
 		rssi 	= '   na'
 
+	if msg.startswith('T03'):			# fhtbuf
+		await printlog("CUL", '', 'FHTBuf', '', clrstr(msg), rssi, clrstr(msg))
+
 	# decode first char, select device type 
 	if msg.startswith('X'):			# credit10ms
 		dmsg = re.match('^.. *\d*[\r\n]*$', msg)
 		if dmsg:
-			print('CUL:\t CREDIT10MS: %s' % (dmsg,))
+			await printlog("CUL", '', 'Credit10ms', '', clrstr(msg), rssi, clrstr(msg))
 
 	if msg.startswith('V'):			# Version
-		print('CUL:\t %s' % msg)
+		await printlog("CUL", '', 'Version', '', clrstr(msg), rssi, clrstr(msg))
 
 	if msg.startswith('F'):			# FS20
-		parseFS20(rawmsg, rssi)
+		await parseFS20(client, rawmsg, rssi)
 
 	elif msg.startswith('T'):
-		if len(rawmsg) > 9 and len(rawmsg) < 13:	# FHT80
-			parseFHT(rawmsg, rssi)
-		elif len(rawmsg) < 9 :			# FHT80TF/Window
-			parseFHTTK(rawmsg, rssi)
+		if len(rawmsg) > 11 and len(rawmsg) < 15:	# FHT80 e.g. T552D00267A31 T+12
+			await parseFHT(client, rawmsg, rssi)
+		elif len(rawmsg) < 11 :						# FHT80TF/Window e.g. T7D66C002FA T+10
+			await parseFHTTK(client, rawmsg, rssi)
 		else:
-			print("\t unknown device [raw:%s] (rssi:%s) T%s (%s)" % (rawmsg, rssi, clrstr(rawmsg), len(rawmsg)))
+			await printlog("?:", '', '', len(msg), splitmsg, rssi, clrstr(msg))
 
 	elif msg.startswith('K'):		# S300TH
-		parseS300TH(rawmsg, rssi)
+		await parseS300TH(client, rawmsg, rssi)
 
 	elif msg.startswith('H'): 		# HMS
-		print('HMS [%s] (%s)' % (rawmsg, rssi))
+		await printlog("HMS", '', '', len(msg), '', rssi, clrstr(msg))
 
 	elif msg.startswith('i'): 		# Intertechno
-		print('Intertechno [%s] (%s)' % (rawmsg, rssi))
+		await printlog("Intertechno", '', '', len(msg), '', rssi, clrstr(msg))
 
 	elif msg.startswith('r'): 		# Revolt
-		print('Revolt [%s] (%s)' % (rawmsg, rssi))
+		await printlog("Revolt", '', '', len(msg), '', rssi, clrstr(msg))
 
 	elif msg.startswith('Y'): 		# SOMFY RTS
-		print('SOMFY RTS [%s] (%s)' % (rawmsg, rssi))
+		await printlog("SOMFY RTS", '', '', len(msg), '', rssi, clrstr(msg))
 
 	elif msg.startswith('S'): 		# CUL_ESA / ESA2000 / Native
-		print('CUL_ESA [%s] (%s)' % (rawmsg, rssi))
+		await printlog("CUL_ESA", '', '', len(msg), '', rssi, clrstr(msg))
 
 	elif msg.startswith('E'): 		# CUL_EM / Native
-		print('CUL_EM [%s] (%s)' % (rawmsg, rssi))
+		await printlog("CUL_EM", '', '', len(msg), '', rssi, clrstr(msg))
 
 	elif msg.startswith('R'): 		# CUL_HOERMANN / Native
-		print('CUL_HOERMANN [%s] (%s)' % (rawmsg, rssi))
+		await printlog("CUL_HOERMANN", '', '', len(msg), '', rssi, clrstr(msg))
 
 	elif msg.startswith('A'): 		# AskSin/BidCos/HomeMatic
-		print('AskSin/BidCos/HomeMatic [%s] (%s)' % (rawmsg, rssi))
+		await printlog("HM/AskSin", '', '', len(msg), '', rssi, clrstr(msg))
 
 	elif msg.startswith('Z'): 		# Moritz/Max
-		print('Moritz/Max [%s] (%s)' % (rawmsg, rssi))
+		await printlog("Max", '', '', len(msg), '', rssi, clrstr(msg))
 
 	elif msg == "LOVF": # no send time available anymore
-		print("CUL:\t no send time available\t\t\t [raw:%s]" % msg);
+		await printlog("CUL", '', '', 'no send time available', clrstr(msg), rssi, clrstr(msg))
 	else:
 		dmsg = re.match('^[0-9A-F]{8}[\r\n]*$', msg)
 		if dmsg: 
 			dmsg = int(dmsg.group(0),16)
-			print('CUL:\t UPTIME\t\t   %d %02d:%02d:%02d' % (dmsg/86400, (dmsg%86400)/3600, (dmsg%3600)/60, dmsg%60))
+			buf = ('%d %02d:%02d:%02d' % (dmsg/86400, (dmsg%86400)/3600, (dmsg%3600)/60, dmsg%60))
+			await printlog("CUL", '', 'Uptime', buf, clrstr(msg), rssi, clrstr(msg))
 		else:
-			print("CUL:\t received: %s" % str(msg))
+			await printlog("CUL", '', 'received', '', clrstr(msg), rssi, clrstr(msg))
 
 ################################################################################
 # MQTT interface
@@ -569,13 +643,15 @@ async def mqtt(mqttTxQueue, canTxQueue, server, port, user, passwd, ca):
 	while True:
 		msg = await mqttTxQueue.get()
 		try:		# von CUL an MQTT
-			msgPublish = client.publish(mqtt_PublishTopic + msg[0], msg[1], retain=msg[2])
-			await msgPublish.wait_for_publish()
+			#msgPublish = client.publish(mqtt_PublishTopic + msg[0], msg[1], retain=msg[2])
+			#await msgPublish.wait_for_publish()
 			#print("MQTT TX: Topic: %-35s >> Message: %-20s [%s]" % (msg[0], str(msg[1]), str(msg[2])))			
-			culDecode(str(msg[1]))
+			await culDecode(client, str(msg[1]))
 		except IndexError:
 			print("MQTT publish failed: \t%s" % (msg, ))
 
+	# close CUL Port
+	#asyncio.ensure_future(culTxQueue.put('X00'))
 
 ################################################################################
 # init
