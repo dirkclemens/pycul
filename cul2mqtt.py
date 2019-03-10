@@ -75,7 +75,7 @@ fs20codes = {
   "12":"toggle",	# between off and previous dim val
   "13":"dimup", "14":"dimdown", "15":"dimupdown",
   "16":"timer", "17":"sendstate", "18":"off-for-timer", "19":"on-for-timer", "1a":"on-old-for-timer",
-  "1b":"reset", "1c":"ramp-on-time", "sd":"ramp-off-time", "1e":"on-old-for-timer-prev", "1f":"on-100-for-timer-prev", 
+  "1b":"reset", "1c":"ramp-on-time", "1d":"ramp-off-time", "1e":"on-old-for-timer-prev", "1f":"on-100-for-timer-prev", 
   "20":"off",
   "21":"dim06%", "22":"dim12%", "23":"dim18%", "24":"dim25%", "25":"dim31%", "26":"dim37%", "27":"dim43%", "28":"dim50%", "29":"dim56%", "2a":"dim62%", "2b":"dim68%", "2c":"dim75%", "2d":"dim81%",  "2e":"dim87%", "2f":"dim93%", "30":"dim100%",
   "31":"on", "32":"toggle", "33":"dimup", "34":"dimdown", "35":"dimupdown",
