@@ -36,15 +36,21 @@ import re
 ################################################################################
 # settings
 ################################################################################
-cul_port            = '/dev/ttyACM1'
-cul_baud            = 9600
-mqtt_server         = '192.168.2.36'
-mqtt_port           = 1883
-mqtt_SubscribeTopic = 'smarthome/cul/to/#'
-mqtt_PublishTopic   = 'smarthome/cul/from/'
-mqtt_user           = '***'
-mqtt_pass           = '***'
-mqtt_ca             = ''
+#cul_port				= '/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0' # /dev/ttyUSB0
+cul_port				= '/dev/ttyUSB0'
+cul_baud				= 38400
+mqtt_server				= '192.168.2.36'
+mqtt_por				= 1883
+mqtt_SubscribeTopic		= 'smarthome/cul/to/#'
+mqtt_PublishTopic	 	= 'smarthome/cul/device/'
+mqtt_user				= '***'
+mqtt_pass				= '***'
+mqtt_ca					= ''
+'''
+const char* MQTT_LIGHT_STATE_TOPIC = "office/light1/status";
+const char* MQTT_LIGHT_COMMAND_TOPIC = "office/light1/switch";  # subscribe topic
+'''
+cul_init				= b'X21\r\n' # X21 is needed for RSSI reporting
 
 ################################################################################
 # pre-checks 
@@ -66,21 +72,22 @@ FHT80TF 		= {"52FB7B":"Multiraum", "9F63ED":"Kueche", "AD141B":"Lina", "7D66C0":
 
 # https://www.elv.at/downloads/faq/2013-05-27_Interne_Bezeichnungen_FS20-Befehlcodes.pdf
 fs20codes = {
-  "00":"off", 
+  "00":"off",
   "01":"dim06%", "02":"dim12%", "03":"dim18%", "04":"dim25%", "05":"dim31%", "06":"dim37%", "07":"dim43%", "08":"dim50%", "09":"dim56%", "0a":"dim62%", "0b":"dim68%", "0c":"dim75%", "0d":"dim81%",  "0e":"dim87%", "0f":"dim93%", "10":"dim100%",
   "11":"on",		# Set to previous dim value (before switching it off)
   "12":"toggle",	# between off and previous dim val
   "13":"dimup", "14":"dimdown", "15":"dimupdown",
   "16":"timer", "17":"sendstate", "18":"off-for-timer", "19":"on-for-timer", "1a":"on-old-for-timer",
-  "1b":"reset", "1c":"ramp-on-time", "1d":"ramp-off-time", "1e":"on-old-for-timer-prev", "1f":"on-100-for-timer-prev", 
-  "20":"off", 
+  "1b":"reset", "1c":"ramp-on-time", "sd":"ramp-off-time", "1e":"on-old-for-timer-prev", "1f":"on-100-for-timer-prev", 
+  "20":"off",
   "21":"dim06%", "22":"dim12%", "23":"dim18%", "24":"dim25%", "25":"dim31%", "26":"dim37%", "27":"dim43%", "28":"dim50%", "29":"dim56%", "2a":"dim62%", "2b":"dim68%", "2c":"dim75%", "2d":"dim81%",  "2e":"dim87%", "2f":"dim93%", "30":"dim100%",
   "31":"on", "32":"toggle", "33":"dimup", "34":"dimdown", "35":"dimupdown",
   "36":"timer", "37":"sendstate", "38":"off-for-timer", "39":"on-for-timer", "3a":"on-old-for-timer",
-  "3b":"n/a", "3c":"ramp-on-time", "3d":"ramp-off-time", "3e":"on-old-for-timer-prev", "3f":"on-100-for-timer-prev"}
-fhtcodes = { 
+  "3b":"n/a", "3c":"ramp-on-time", "3d":"ramp-off-time", "3e":"on-old-for-timer-prev", "3f":"on-100-for-timer-prev"
+}
+fhtcodes = {
   "00":"actuator", "01":"actuator1", "02":"actuator2", "03":"actuator3", "04":"actuator4", "05":"actuator5", "06":"actuator6", "07":"actuator7", "08":"actuator8",
-  "14":"mon-from1", "15":"mon-to1", "16":"mon-from2", "17":"mon-to2", "18":"tue-from1", "19":"tue-to1", "1A":"tue-from2", "1B":"tue-to2", "1C":"wed-from1", "1D":"wed-to1", "1E":"wed-from2", "1F":"wed-to2", "20":"thu-from1", "21":"thu-to1", "22":"thu-from2", "23":"thu-to2", "24":"fri-from1", "25":"fri-to1", "26":"fri-from2", "27":"fri-to2", "28":"sat-from1", "29":"sat-to1", "2A":"sat-from2", "2B":"sat-to2", "2C":"sun-from1", "2D":"sun-to1", "2E":"sun-from2", "2F":"sun-to2",
+  "14":"mon-from1", "15":"mon-to1", "16":"mon-from2", "17":"mon-to2", "18":"tue-from1", "19":"tue-to1", "1A":"tue-from2", "1B":"tue-to2", "1C":"wed-from1", "1D":"wed-to1", "1E":"wed-from2", "1F":"wed-to2", "20":"thu-from1", "21":"thu-to1", "22":"thu-from2", "23":"thu-to2", "24":"fri-from1", "25":"fri-to1", "26":"fri-from2", "27":"fri-to2", "28":"sat-from1", "29":"sat-to1", "2A":"sat-from2", "2B":"sat-to2", "2C":"sun-from1", "2D":"sun-to1", "2E":"sun-from2", "2F":"sun-to3",
   "3E":"mode",
   "3F":"holiday1",		# Not verified
   "40":"holiday2",		# Not verified
@@ -93,20 +100,21 @@ fhtcodes = {
   "8A":"windowopen-temp" 
 }
 fhttfkcodes = {
-    "02":"Window:Closed",
-    "82":"Window:Closed",
-    "01":"Window:Open",
-    "81":"Window:Open",
-    "0c":"Sync:Syncing",
-    "91":"Window:Open, Low Batt",
-    "11":"Window:Open, Low Batt",
-    "92":"Window:Closed, Low Batt",
-    "12":"Window:Closed, Low Batt",
-    "0f":"Test:Success" 
+  "02":"Window:Closed",
+  "82":"Window:Closed",
+  "01":"Window:Open",
+  "81":"Window:Open",
+  "0c":"Sync:Syncing",
+  "91":"Window:Open, Low Batt",
+  "11":"Window:Open, Low Batt",
+  "92":"Window:Closed, Low Batt",
+  "12":"Window:Closed, Low Batt",
+  "0f":"Test:Success"
 }
-    
+
 ################################################################################
 # CUL Stick - serial asyncIO interface
+# from https://github.com/pyserial/pyserial-asyncio/blob/master/serial_asyncio/__init__.py
 ################################################################################
 class culRxTx(asyncio.Protocol):
 	def __init__(self, queueRX, queueTX):
@@ -123,18 +131,21 @@ class culRxTx(asyncio.Protocol):
 		print('CUL serial port opened:\r\n', transport)
 
 		# initialize CUL
-		#self.transport.serial.write(b'V\r\n')
-		self.transport.serial.write(b'X21\r\n')
+		self.transport.serial.write(b'V\r\nX21\r\n')
 		asyncio.sleep(0.3)
+
+		self.transport.serial.write(cul_init)
+		asyncio.sleep(0.3)
+
 		print('CUL init done.')
 
 		# start receiving loop
 		asyncio.ensure_future(self.send())
-		#print('starting loop')
+		print('starting loop')
 
 
 	def data_received(self, data):
-		#print ('data_received')
+		#print ('data_received', repr(data))
 		self.buf += binascii.b2a_qp(data)
 		if b'\n' in self.buf:
 			lines = self.buf.split(b'\n')
@@ -194,16 +205,16 @@ class culRxTx(asyncio.Protocol):
 				cmd,subcmd = rawcmd.split(' ')
 			#print('msg:%s >>>> cmd:%s >>>subcmd:%s' % (msg,cmd,subcmd))
 
-			if msg[0] in ['F','l','T','t','V','X','#']:
+			if msg[0] in ['F','l','T','t','V','X','?','#']:
 				if (msg[0] == 'V'): #Version
 					self.transport.serial.write(b'V\r\n')
 				if (msg[0] == 't'): # uptime
 					self.transport.serial.write(b't\r\n')
 				if (msg[0] == 'X'):
-					print('CUL:     sending raw %s' % rawcmd)
+					#print('CUL:     sending raw %s' % rawcmd)
 					self.transport.serial.write(bytes('%s\r\n' % (rawcmd, ), 'ascii'))
 				if (msg[0] == 'l'): # l00: an, l01: aus, l02: blink
-					print('CUL:     sending raw %s' % rawcmd)
+					#print('CUL:     sending raw %s' % rawcmd)
 					self.transport.serial.write(bytes('%s\r\n' % (rawcmd, ), 'ascii'))
 				if (msg[0] == 'F'):
 					#print('CUL:     sending to FS20 %s' % (msg, ))
@@ -223,21 +234,20 @@ class culRxTx(asyncio.Protocol):
 	def connection_lost(self, exc):
 		print('CUL serial port closed.')
 		self.transport.serial.write(b'X00\r\n') # close CUL
+		self._transport.loop.stop()
 		asyncio.get_event_loop().stop()
 		# the value passed to set_result will be transmitted to
 		# run_until_complete(protocol.wait_connection_lost()).
-		#self.__done.set_result(None)
+		#return self.__done.set_result(None)
 
-
+	'''
 	def eof_received(self):
 		print("eof_received")
 		return True
 
-
 	def write_data(self):
 		print("write_data")
 		self.transport.serial.write(self.message)
-
 
 	# When awaited, resumes execution after connection_lost()
 	# has been invoked on this protocol.
@@ -245,7 +255,7 @@ class culRxTx(asyncio.Protocol):
 		print('wait_connection_lost')
 		self.transport.serial.write(b'X00\r\n') # close CUL
 		return self.__done
-
+	'''
 
 ################################################################################
 # decoding messages from CUL 
@@ -278,7 +288,7 @@ async def parseS300TH(client, msg, rssi):
 		humidity = float(msg[6] + msg[7] + "." + msg[4])	# + $hash->{corr2}
 
 		json = '{"type":"S300TH","name":"%s","device":"%s","temperature":"%s","humidity":"%s","raw":"%s"}' % ('K1', 'K'+msg[0], temperature, humidity, clrstr(msg))
-		msgPublish = client.publish(mqtt_PublishTopic + 'K'+msg[0] + '/state', json, retain=1)
+		msgPublish = client.publish(mqtt_PublishTopic + 'K'+msg[0] + '/status', json, retain=1)
 		await msgPublish.wait_for_publish()
 
 		buf = ('Temp:%-4s Humi:%-20s' % (temperature,humidity))
@@ -291,12 +301,12 @@ async def parseFS20(client, msg, rssi):
 								# FDC690200
 								# FHHHHAABBTTRR
 	device		= msg[0:4]		# HHHH FS20-Hauscode 	my $dev = substr($msg, 16, 4);
-	btn		= msg[4:4+2]	# AA   FS20-Adresse		my $btn = substr($msg, 20, 2);
+	btn			= msg[4:4+2]	# AA   FS20-Adresse		my $btn = substr($msg, 20, 2);
 	command		= msg[6:6+2]	# BB   FS20-Befehl		my $cde = substr($msg, 24, 2);
-	argument	= msg[8:8+2]	# TT   FS20-Timer Erweiterungbyte
+	argument		= msg[8:8+2]	# TT   FS20-Timer Erweiterungbyte
 	splitmsg	= "   %s-%s-%s" % (device, btn, command)
 	if len(argument)>0:
-		splitmsg= "%s-%s-%s-%s" % (device, btn, command, argument)
+		splitmsg		= "%s-%s-%s-%s" % (device, btn, command, argument)
 	FS20deviceID = device+btn
 	attr 		= ''
 	
@@ -311,7 +321,7 @@ async def parseFS20(client, msg, rssi):
 		to  = ('%02d:%02d:%02d' % (dur/3600, (dur%3600)/60, dur%60))
 		#print('\t\t\t   command:%s (%0.2X) - i:%s - j:%s - dur:%s - cde:%s - to:%s' % (command, cx, i, j, dur, cde, to))
 	else: 
-		to = ''
+		to = '0x'
 
 	if FS20deviceID in FS20:
 		FS20device = FS20[FS20deviceID]
@@ -325,7 +335,15 @@ async def parseFS20(client, msg, rssi):
 			pass
 
 		json = '{"type":"FS20","name":"%s","device":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FS20device, device, state, attr, to, clrstr(msg))
-		msgPublish = client.publish(mqtt_PublishTopic + 'F'+device+btn + '/state', state, retain=1)
+		'''
+		home-assistant:
+		state_topic: 'office/light1/status'
+		command_topic: 'office/light1/switch'
+		brightness_state_topic: "office/rgb1/brightness/status"
+		brightness_command_topic: "office/rgb1/brightness/set"
+		'''
+		msgPublish = client.publish(mqtt_PublishTopic + 'F'+device+btn + '/status', json, retain=1)
+		#msgPublish = client.publish(mqtt_PublishTopic + 'F'+device+btn + '/status', state, retain=1)
 		await msgPublish.wait_for_publish()
 
 		await printlog("FS20", FS20device, state, to, splitmsg, rssi, 'F'+clrstr(msg))
@@ -339,9 +357,9 @@ fht_measured_low  = -1
 async def parseFHT(client, msg, rssi):
 	global fht_measured_low
 	device	 	= msg[0:4]		# Hauscode		 	/ my $dev = substr($msg, 16, 4);
-	cde 		= msg[4:4+2]	# Kommando (00) 	/ my $cde = substr($msg, 20, 2);
+	cde 			= msg[4:4+2]	# Kommando (00) 	/ my $cde = substr($msg, 20, 2);
 	origin 		= msg[6:6+2]	# Befehl  			/ 22
-	val 		= msg[8:8+2]	# Erweiterungbyte 	/ 24
+	val 			= msg[8:8+2]	# Erweiterungbyte 	/ 24
 	check 		= msg[10:10+2]	# checksum 8bit-Summe von HC1 bis EE + Ch # 26
 	splitmsg 	= "%s-%s-%s-%s" % (device, cde, origin, val)
 	if len(msg)>10:
@@ -438,7 +456,7 @@ async def parseFHT(client, msg, rssi):
 			cvalue = nVal
 
 		if cde == '65' or cde == '66':
-			state = ('REPORT%s %s' % (int(cde)-64, origin))
+			#state = ('REPORT%s %s' % (int(cde)-64, origin))
 			cattr  = "Report"
 			cvalue = int(cde)-64
 			confirm = 1
@@ -454,8 +472,9 @@ async def parseFHT(client, msg, rssi):
 		if cde == '8A': #"windowopen-temp"
 			cvalue = "%.1f" % dec_val / 2
 
-		json = '{"type":"FHT","name":"%s","device":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FHT80[device], device, state, cattr, cvalue, clrstr(msg))
-		msgPublish = client.publish(mqtt_PublishTopic + 'T'+device + '/'+cattr, cvalue, retain=1)
+		json = '{"type":"FHT","name":"%s","device":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FHT80[device], device, state.lower(), cattr, cvalue, clrstr(msg))
+		msgPublish = client.publish(mqtt_PublishTopic + 'T'+device + '/status', json, retain=1)
+		#msgPublish = client.publish(mqtt_PublishTopic + 'T'+device + '/'+cattr, cvalue, retain=1)
 		await msgPublish.wait_for_publish()
 
 		buf = ('%s: %s' % (cattr, cvalue))
@@ -500,10 +519,10 @@ async def parseFHTTK(client, msg, rssi):
 		if state.startswith('9'):
 			cattr  = "Battery"
 			cvalue = "Low"
-		
-		
+
 		json = '{"type":"FHTTK","name":"%s","device":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FHT80TF[sensor], sensor, cmd, cattr, cvalue, msg)
-		msgPublish = client.publish(mqtt_PublishTopic + 'T'+sensor + '/'+cattr, cvalue, retain=0)
+		msgPublish = client.publish(mqtt_PublishTopic + 'T'+sensor + '/status', json, retain=1)
+		#msgPublish = client.publish(mqtt_PublishTopic + 'T'+sensor + '/'+cattr, cvalue, retain=0)
 		await msgPublish.wait_for_publish()
 
 		buf = ('%s: %s' % (cattr, cvalue))
@@ -513,6 +532,7 @@ async def parseFHTTK(client, msg, rssi):
 
 
 # from fhem: 00_CUL.pm
+# CULUSB: Possible commands: BCFiAZEGMRTVWXefmltux
 async def culDecode(client, msg):
 	rawmsg = msg[1:len(msg)+1]
 
@@ -534,6 +554,9 @@ async def culDecode(client, msg):
 		dmsg = re.match('^.. *\d*[\r\n]*$', msg)
 		if dmsg:
 			await printlog("CUL", '', 'Credit10ms', '', clrstr(msg), rssi, clrstr(msg))
+
+	if msg.startswith('?'):			# command list / help
+		await printlog("CUL", '', '?', '', clrstr(msg), rssi, clrstr(msg))
 
 	if msg.startswith('V'):			# Version
 		await printlog("CUL", '', 'Version', '', clrstr(msg), rssi, clrstr(msg))
@@ -655,6 +678,8 @@ async def mqtt(mqttTxQueue, canTxQueue, server, port, user, passwd, ca):
 
 ################################################################################
 # init
+# from https://github.com/pyserial/pyserial-asyncio/blob/master/serial_asyncio/__init__.py
+# from https://github.com/adlerweb/asysbus/blob/master/tools/mqtt-proxy.py
 ################################################################################
 culRxQueue = asyncio.Queue()
 culTxQueue = asyncio.Queue()
@@ -669,6 +694,14 @@ culSAIO = serial_asyncio.create_serial_connection(loop, culPartial, cul_port, ba
 asyncio.ensure_future(culSAIO)
 asyncio.ensure_future(mqtt(mqttTxQueue, culTxQueue, mqtt_server, mqtt_port, mqtt_user, mqtt_pass, mqtt_ca))
 
-loop.run_forever()
+try:
+	loop.run_until_complete(culSAIO)
+	loop.run_forever()
+except KeyboardInterrupt:
+	#culSAIO.serial().write(b'X00\r\n') # close CUL
+	culSAIO.close() # close serial
+	loop.close()
+#finally:
+
 loop.close()
 
