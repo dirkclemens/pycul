@@ -36,21 +36,18 @@ import re
 ################################################################################
 # settings
 ################################################################################
-#cul_port				= '/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0' # /dev/ttyUSB0
-cul_port				= '/dev/ttyUSB0'
-cul_baud				= 38400
-mqtt_server				= '192.168.2.36'
-mqtt_por				= 1883
-mqtt_SubscribeTopic		= 'smarthome/cul/to/#'
-mqtt_PublishTopic	 	= 'smarthome/cul/device/'
-mqtt_user				= '***'
-mqtt_pass				= '***'
-mqtt_ca					= ''
-'''
-const char* MQTT_LIGHT_STATE_TOPIC = "office/light1/status";
-const char* MQTT_LIGHT_COMMAND_TOPIC = "office/light1/switch";  # subscribe topic
-'''
-cul_init				= b'X21\r\n' # X21 is needed for RSSI reporting
+#cul_port            = '/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0' # /dev/ttyUSB0
+cul_port            = '/dev/ttyUSB0'
+cul_baud            = 38400
+mqtt_server         = '192.168.2.36'
+mqtt_port           = 1883
+mqtt_SubscribeTopic = 'smarthome/cul/to/#'
+mqtt_PublishTopic   = 'smarthome/cul/device/'
+mqtt_user           = '***'
+mqtt_pass           = '***'
+mqtt_ca             = ''
+
+cul_init			= b'X21\r\n' # X21 is needed for RSSI reporting
 
 ################################################################################
 # pre-checks 
@@ -100,16 +97,16 @@ fhtcodes = {
   "8A":"windowopen-temp" 
 }
 fhttfkcodes = {
-  "02":"Window:Closed",
-  "82":"Window:Closed",
-  "01":"Window:Open",
-  "81":"Window:Open",
-  "0c":"Sync:Syncing",
-  "91":"Window:Open, Low Batt",
-  "11":"Window:Open, Low Batt",
-  "92":"Window:Closed, Low Batt",
-  "12":"Window:Closed, Low Batt",
-  "0f":"Test:Success"
+    "02":"Window:Closed",
+    "82":"Window:Closed",
+    "01":"Window:Open",
+    "81":"Window:Open",
+    "0c":"Sync:Syncing",
+    "91":"Window:Open, Low Batt",
+    "11":"Window:Open, Low Batt",
+    "92":"Window:Closed, Low Batt",
+    "12":"Window:Closed, Low Batt",
+    "0f":"Test:Success"
 }
 
 ################################################################################
@@ -265,6 +262,11 @@ def clrstr(string):
 	s = ''.join(char if char.lower() in legal else ' ' for char in string)
 	return s
 
+def msgStr(string):
+	legal = set(':.,/%°?~+-_abcdefghijklmnopqrstuvwxyz0123456789')
+	s = ''.join(char if char.lower() in legal else '_' for char in string)
+	return s
+	
 async def printlog(devtype,devname,cmd,val,formraw,rssi,raw):
 	try:
 		print('%-12s %-18s %-30s %-24s [%16s] (rssi:%7s) <%s>' % (devtype,devname,cmd[0:29],val[0:23],formraw,rssi,raw))
@@ -286,12 +288,12 @@ async def parseS300TH(client, msg, rssi):
 		if sgn != 0:
 			temperature *= -1
 		humidity = float(msg[6] + msg[7] + "." + msg[4])	# + $hash->{corr2}
+		buf = ('T:%s-H:%s' % (temperature,humidity))
 
-		json = '{"type":"S300TH","name":"%s","device":"%s","temperature":"%s","humidity":"%s","raw":"%s"}' % ('K1', 'K'+msg[0], temperature, humidity, clrstr(msg))
+		json = '{"type":"S300TH","name":"%s","device":"%s","state":"%s","temperature":"%s","humidity":"%s","raw":"%s"}' % ('K1', 'K'+msg[0], buf, temperature, humidity, clrstr(msg))
 		msgPublish = client.publish(mqtt_PublishTopic + 'K'+msg[0] + '/status', json, retain=1)
 		await msgPublish.wait_for_publish()
 
-		buf = ('Temp:%-4s Humi:%-20s' % (temperature,humidity))
 		await printlog("S300TH", cde, 'SENSOR', buf, clrstr(msg), rssi, 'K'+clrstr(msg))
 
 
@@ -301,15 +303,15 @@ async def parseFS20(client, msg, rssi):
 								# FDC690200
 								# FHHHHAABBTTRR
 	device		= msg[0:4]		# HHHH FS20-Hauscode 	my $dev = substr($msg, 16, 4);
-	btn			= msg[4:4+2]	# AA   FS20-Adresse		my $btn = substr($msg, 20, 2);
+	btn		= msg[4:4+2]	# AA   FS20-Adresse		my $btn = substr($msg, 20, 2);
 	command		= msg[6:6+2]	# BB   FS20-Befehl		my $cde = substr($msg, 24, 2);
-	argument		= msg[8:8+2]	# TT   FS20-Timer Erweiterungbyte
+	argument	= msg[8:8+2]	# TT   FS20-Timer Erweiterungbyte
 	splitmsg	= "   %s-%s-%s" % (device, btn, command)
 	if len(argument)>0:
-		splitmsg		= "%s-%s-%s-%s" % (device, btn, command, argument)
+		splitmsg = "%s-%s-%s-%s" % (device, btn, command, argument)
 	FS20deviceID = device+btn
 	attr 		= ''
-	
+
 	cx  = int(command,16) # hex to int
 	cde 		= ' '
 	if (cx & 0x20) and len(argument)>0:  # Timed command
@@ -320,21 +322,22 @@ async def parseFS20(client, msg, rssi):
 		cde = "%0.2X" % (cx & ~0x20)
 		to  = ('%02d:%02d:%02d' % (dur/3600, (dur%3600)/60, dur%60))
 		#print('\t\t\t   command:%s (%0.2X) - i:%s - j:%s - dur:%s - cde:%s - to:%s' % (command, cx, i, j, dur, cde, to))
-	else: 
+	else:
 		to = '0x'
 
 	if FS20deviceID in FS20:
 		FS20device = FS20[FS20deviceID]
+
 		state = "unknown command %s" % command
-		try:	
+		try:
 			state = fs20codes[command].upper()
-			if cx == 0 or cx == 17: # off / on 
+			if cx in {0, 17, 20, 31}: # off / on
 				to = state.lower()
 			pass
 		except Exception as e:
 			pass
 
-		json = '{"type":"FS20","name":"%s","device":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FS20device, device, state, attr, to, clrstr(msg))
+		json = '{"type":"FS20","name":"%s","device":"%s","state":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FS20device, FS20deviceID, msgStr(to), state, attr, to, clrstr(msg))
 		'''
 		home-assistant:
 		state_topic: 'office/light1/status'
@@ -342,13 +345,13 @@ async def parseFS20(client, msg, rssi):
 		brightness_state_topic: "office/rgb1/brightness/status"
 		brightness_command_topic: "office/rgb1/brightness/set"
 		'''
-		msgPublish = client.publish(mqtt_PublishTopic + 'F'+device+btn + '/status', json, retain=1)
-		#msgPublish = client.publish(mqtt_PublishTopic + 'F'+device+btn + '/status', state, retain=1)
+		msgPublish = client.publish(mqtt_PublishTopic + 'F'+FS20deviceID + '/status', json, retain=1)
+		#msgPublish = client.publish(mqtt_PublishTopic + 'F'+FS20deviceID + '/status', state, retain=1)
 		await msgPublish.wait_for_publish()
 
-		await printlog("FS20", FS20device, state, to, splitmsg, rssi, 'F'+clrstr(msg))
+		await printlog("FS20", FS20device, state, 'Switch: '+to, splitmsg, rssi, 'F'+clrstr(msg))
 	else:
-		await printlog("?", '', '', '', splitmsg, rssi, clrstr(msg))
+		await printlog("FS20", '?', '', '', splitmsg, rssi, clrstr(msg))
 
 
 # from fhem: 11_FHT.pm
@@ -415,7 +418,7 @@ async def parseFHT(client, msg, rssi):
 				cvalue = 'Unknown Mode'
 
 		if cde == '41': # FHT_DESIRED_TEMP
-			cattr  = "Desired Temp."
+			cattr  = "DesiredTemp"
 			cvalue = round(float(dec_val / 2.0), 0)
 			try:
 				if int(cvalue) > 30: 
@@ -437,7 +440,7 @@ async def parseFHT(client, msg, rssi):
 			# measured-temp= (measured-high * 256 + measured-low) / 10.
 			if fht_measured_low>=0:
 				state = 'MEASURED-TEMP'
-				cattr  = "Measured Temp."
+				cattr  = "MeasuredTemp"
 				cvalue = str(round(float((dec_val * 256.0 + fht_measured_low) / 10.0), 0))
 				fht_measured_low  = -1 
 
@@ -472,15 +475,15 @@ async def parseFHT(client, msg, rssi):
 		if cde == '8A': #"windowopen-temp"
 			cvalue = "%.1f" % dec_val / 2
 
-		json = '{"type":"FHT","name":"%s","device":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FHT80[device], device, state.lower(), cattr, cvalue, clrstr(msg))
+		json = '{"type":"FHT","name":"%s","device":"%s","state":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FHT80[device], device, msgStr(state.lower()), state.lower(), cattr, msgStr(cvalue), clrstr(msg))
 		msgPublish = client.publish(mqtt_PublishTopic + 'T'+device + '/status', json, retain=1)
 		#msgPublish = client.publish(mqtt_PublishTopic + 'T'+device + '/'+cattr, cvalue, retain=1)
 		await msgPublish.wait_for_publish()
 
 		buf = ('%s: %s' % (cattr, cvalue))
-		await printlog("FHT80", FHT80[device], state, buf, splitmsg, rssi, 'T'+clrstr(msg))
+		await printlog("FHT80", FHT80[device], msgStr(cvalue), buf, splitmsg, rssi, 'T'+clrstr(msg))
 	else:
-		await printlog("?", '', '', '', splitmsg, rssi, clrstr(msg))
+		await printlog("FHT80", '?', '', '', splitmsg, rssi, clrstr(msg))
 
 
 # from fhem: 09_CUL_FHTTK.pm
@@ -498,7 +501,7 @@ async def parseFHTTK(client, msg, rssi):
 	# if 2nd char of XX is c then Sync:Syncing
 	# if 2nd char of XX is f then Test:Success
 	if sensor in FHT80TF: 
-		cmd = fhttfkcodes[state].upper()
+		cmd = fhttfkcodes[state]
 		cattr  = ''
 		cvalue = ''
 		if state.endswith('1'):
@@ -520,15 +523,15 @@ async def parseFHTTK(client, msg, rssi):
 			cattr  = "Battery"
 			cvalue = "Low"
 
-		json = '{"type":"FHTTK","name":"%s","device":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FHT80TF[sensor], sensor, cmd, cattr, cvalue, msg)
+		json = '{"type":"FHTTK","name":"%s","device":"%s","state":"%s","action":"%s","attribute":"%s","value":"%s","raw":"%s"}' % (FHT80TF[sensor], sensor, cmd, cmd, cattr, msgStr(cvalue), msg)
 		msgPublish = client.publish(mqtt_PublishTopic + 'T'+sensor + '/status', json, retain=1)
 		#msgPublish = client.publish(mqtt_PublishTopic + 'T'+sensor + '/'+cattr, cvalue, retain=0)
 		await msgPublish.wait_for_publish()
 
 		buf = ('%s: %s' % (cattr, cvalue))
-		await printlog("FHT80TF", FHT80TF[sensor], cmd, buf, splitmsg, rssi, 'T'+clrstr(msg))
+		await printlog("FHT80TF", FHT80TF[sensor], cmd.upper(), buf, splitmsg, rssi, 'T'+clrstr(msg))
 	else:
-		await printlog("?", '', '', '', splitmsg, rssi, clrstr(msg))
+		await printlog("FHT80TF", '?', '', '', splitmsg, rssi, clrstr(msg))
 
 
 # from fhem: 00_CUL.pm
