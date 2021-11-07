@@ -1,4 +1,7 @@
 # pycul
+
+*** deprecated, since at least python 3.4 - not longer maintained ***
+
 access CUL stick (based on http://culfw.de/) using Python3 
 
 CUL stick: http://shop.busware.de/product_info.php/cPath/1_35/products_id/29
